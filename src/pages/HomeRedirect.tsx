@@ -17,8 +17,13 @@ export default function HomeRedirect() {
   useEffect(() => {
     if (!isAuthenticated || isLoading) return;
 
+    if (roles.length === 0) {
+      navigate("/no-access", { replace: true });
+      return;
+    }
+
     const primaryRole = roles[0];
-    const target = primaryRole ? roleRoutes[primaryRole] : "/reception";
+    const target = roleRoutes[primaryRole] || "/reception";
     navigate(target, { replace: true });
   }, [isAuthenticated, isLoading, roles, navigate]);
 
