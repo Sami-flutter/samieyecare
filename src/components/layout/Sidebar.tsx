@@ -12,8 +12,11 @@ import {
   UserPlus,
   ClipboardList,
   Activity,
+  Loader2,
 } from 'lucide-react';
-import { UserRole } from '@/types/clinic';
+import { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 interface NavItem {
   label: string;
@@ -21,7 +24,7 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-const roleNavItems: Record<UserRole, NavItem[]> = {
+const roleNavItems: Record<AppRole, NavItem[]> = {
   reception: [
     { label: 'Dashboard', href: '/reception', icon: LayoutDashboard },
     { label: 'Register Patient', href: '/reception/register', icon: UserPlus },
@@ -44,7 +47,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
 };
 
-const roleIcons: Record<UserRole, React.ElementType> = {
+const roleIcons: Record<AppRole, React.ElementType> = {
   reception: Users,
   eye_measurement: Eye,
   doctor: Stethoscope,
@@ -52,7 +55,7 @@ const roleIcons: Record<UserRole, React.ElementType> = {
   admin: Settings,
 };
 
-const roleLabels: Record<UserRole, string> = {
+const roleLabels: Record<AppRole, string> = {
   reception: 'Reception',
   eye_measurement: 'Eye Measurement',
   doctor: 'Doctor',
@@ -61,13 +64,14 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 export function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user, profile, role, logout, isLoading } = useAuth();
   const location = useLocation();
 
-  if (!user) return null;
+  if (!user || !role) return null;
 
-  const navItems = roleNavItems[user.role];
-  const RoleIcon = roleIcons[user.role];
+  const navItems = roleNavItems[role];
+  const RoleIcon = roleIcons[role];
+  const displayName = profile?.name || user.email || 'User';
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col">
@@ -91,8 +95,8 @@ export function Sidebar() {
             <RoleIcon className="w-4 h-4 text-sidebar-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-sidebar-foreground/60">{roleLabels[user.role]}</p>
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <p className="text-xs text-sidebar-foreground/60">{roleLabels[role]}</p>
           </div>
         </div>
       </div>
@@ -123,9 +127,14 @@ export function Sidebar() {
       <div className="p-4 border-t border-sidebar-border">
         <button
           onClick={logout}
+          disabled={isLoading}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-all"
         >
-          <LogOut className="w-5 h-5" />
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <LogOut className="w-5 h-5" />
+          )}
           Sign Out
         </button>
       </div>

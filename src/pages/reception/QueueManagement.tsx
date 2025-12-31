@@ -1,44 +1,70 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useClinicData } from '@/contexts/ClinicDataContext';
+import { useTodayVisits, useUpdateVisitStatus, useRecordPayment } from '@/hooks/useVisits';
 import { toast } from 'sonner';
-import { DollarSign, Send, CheckCircle } from 'lucide-react';
-import { PaymentMethod, VisitStatus } from '@/types/clinic';
+import { DollarSign, Send, CheckCircle, Loader2 } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+
+type PaymentMethod = Database['public']['Enums']['payment_method'];
 
 export default function QueueManagement() {
-  const { getTodayVisits, updateVisitStatus, recordPayment } = useClinicData();
+  const { data: todayVisits = [], isLoading } = useTodayVisits();
+  const updateStatusMutation = useUpdateVisitStatus();
+  const recordPaymentMutation = useRecordPayment();
+  
   const [selectedVisit, setSelectedVisit] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const todayVisits = getTodayVisits();
-
-  const handleRecordPayment = () => {
+  const handleRecordPayment = async () => {
     if (!selectedVisit || !paymentAmount) {
       toast.error('Please enter payment amount');
       return;
     }
     
-    recordPayment(selectedVisit, paymentMethod, parseFloat(paymentAmount));
-    toast.success('Payment recorded successfully!');
-    setDialogOpen(false);
-    setPaymentAmount('');
-    setSelectedVisit(null);
+    try {
+      await recordPaymentMutation.mutateAsync({
+        visitId: selectedVisit,
+        paymentMethod,
+        paymentAmount: parseFloat(paymentAmount),
+      });
+      toast.success('Payment recorded successfully!');
+      setDialogOpen(false);
+      setPaymentAmount('');
+      setSelectedVisit(null);
+    } catch (error) {
+      toast.error('Failed to record payment');
+    }
   };
 
-  const handleSendToMeasurement = (visitId: string) => {
-    updateVisitStatus(visitId, 'eye_measurement');
-    toast.success('Patient sent to Eye Measurement');
+  const handleSendToMeasurement = async (visitId: string) => {
+    try {
+      await updateStatusMutation.mutateAsync({ visitId, status: 'eye_measurement' });
+      toast.success('Patient sent to Eye Measurement');
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <PageHeader title="Queue Management" description="View and manage today's patient queue" />
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -62,12 +88,12 @@ export default function QueueManagement() {
                   {/* Queue Number */}
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
-                      {visit.queueNumber}
+                      {visit.queue_number}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{visit.patient?.name || 'Unknown'}</h3>
+                      <h3 className="font-semibold text-lg">{visit.patients?.name || 'Unknown'}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {visit.patient?.phone} · {visit.patient?.age}y · {visit.patient?.gender}
+                        {visit.patients?.phone} · {visit.patients?.age}y · {visit.patients?.gender}
                       </p>
                     </div>
                   </div>
@@ -76,10 +102,10 @@ export default function QueueManagement() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:ml-auto">
                     <StatusBadge status={visit.status} />
                     
-                    {visit.paymentAmount ? (
+                    {visit.payment_amount ? (
                       <div className="flex items-center gap-1 text-sm text-success font-medium">
                         <CheckCircle className="w-4 h-4" />
-                        ${visit.paymentAmount} ({visit.paymentMethod})
+                        ${Number(visit.payment_amount).toFixed(2)} ({visit.payment_method})
                       </div>
                     ) : (
                       <Dialog open={dialogOpen && selectedVisit === visit.id} onOpenChange={setDialogOpen}>
@@ -121,7 +147,12 @@ export default function QueueManagement() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <Button onClick={handleRecordPayment} className="w-full gradient-primary">
+                            <Button 
+                              onClick={handleRecordPayment} 
+                              className="w-full gradient-primary"
+                              disabled={recordPaymentMutation.isPending}
+                            >
+                              {recordPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                               Record Payment
                             </Button>
                           </div>
@@ -134,6 +165,7 @@ export default function QueueManagement() {
                         size="sm" 
                         onClick={() => handleSendToMeasurement(visit.id)}
                         className="gradient-primary"
+                        disabled={updateStatusMutation.isPending}
                       >
                         <Send className="w-4 h-4 mr-1" />
                         Send to Eye Test
