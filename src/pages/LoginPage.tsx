@@ -39,11 +39,10 @@ export default function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && roles.length > 0 && !authLoading) {
-      const primaryRole = roles[0];
-      navigate(roleRoutes[primaryRole] || '/reception');
+    if (isAuthenticated && !authLoading) {
+      navigate('/', { replace: true });
     }
-  }, [isAuthenticated, roles, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +55,7 @@ export default function LoginPage() {
         setError(error);
       } else {
         toast.success('Welcome back!');
-        // Navigation will happen via useEffect once roles are loaded
+        navigate('/', { replace: true });
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -76,7 +75,7 @@ export default function LoginPage() {
         setError(error);
       } else {
         toast.success('Account created! You are now logged in.');
-        // Navigation will happen via useEffect once roles are loaded
+        navigate('/', { replace: true });
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
