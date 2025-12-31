@@ -229,7 +229,7 @@ export default function LoginPage() {
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(roleLabels).map(([value, label]) => (
+                        {Object.entries(signupRoleLabels).map(([value, label]) => (
                           <SelectItem key={value} value={value}>
                             {label}
                           </SelectItem>
