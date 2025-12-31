@@ -11,6 +11,7 @@ import RegisterPatient from "./pages/reception/RegisterPatient";
 import QueueManagement from "./pages/reception/QueueManagement";
 import EyeMeasurementPage from "./pages/eye-measurement/EyeMeasurementPage";
 import DoctorPage from "./pages/doctor/DoctorPage";
+import PatientHistoryPage from "./pages/patient-history/PatientHistoryPage";
 import PharmacyPage from "./pages/pharmacy/PharmacyPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import StaffManagement from "./pages/admin/StaffManagement";
@@ -59,6 +60,11 @@ const App = () => (
             <Route path="/doctor" element={
               <ProtectedRoute allowedRoles={['doctor', 'admin']}>
                 <DoctorPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/patient-history" element={
+              <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+                <PatientHistoryPage />
               </ProtectedRoute>
             } />
             
