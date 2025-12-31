@@ -13,12 +13,12 @@ import { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
-const roleLabels: Record<AppRole, string> = {
+// Roles available for self-signup (admin excluded for security)
+const signupRoleLabels: Record<string, string> = {
   reception: 'Reception / Cashier',
   eye_measurement: 'Eye Measurement',
   doctor: 'Doctor',
   pharmacy: 'Pharmacy',
-  admin: 'Admin',
 };
 
 const roleRoutes: Record<AppRole, string> = {
