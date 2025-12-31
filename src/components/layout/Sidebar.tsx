@@ -69,8 +69,10 @@ export function Sidebar() {
 
   if (!user || !role) return null;
 
-  const navItems = roleNavItems[role];
-  const RoleIcon = roleIcons[role];
+  const navItems = roleNavItems[role] || [];
+  const RoleIcon = roleIcons[role] || Users;
+  
+  if (navItems.length === 0) return null;
   const displayName = profile?.name || user.email || 'User';
 
   return (
