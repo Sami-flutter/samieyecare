@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useClinicData } from '@/contexts/ClinicDataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVisitsByStatus, useUpdateVisitStatus, VisitWithPatient } from '@/hooks/useVisits';
+import { useEyeMeasurementByVisit, useAddEyeMeasurement } from '@/hooks/useEyeMeasurements';
 import { toast } from 'sonner';
-import { Eye, Send, User } from 'lucide-react';
-import { Visit } from '@/types/clinic';
+import { Eye, Send, User, Loader2 } from 'lucide-react';
 
 export default function EyeMeasurementPage() {
   const { user } = useAuth();
-  const { getVisitsByStatus, addEyeMeasurement, updateVisitStatus, getEyeMeasurementByVisit } = useClinicData();
-  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const { data: waitingPatients = [], isLoading } = useVisitsByStatus('eye_measurement');
+  const updateStatusMutation = useUpdateVisitStatus();
+  const addMeasurementMutation = useAddEyeMeasurement();
+  
+  const [selectedVisit, setSelectedVisit] = useState<VisitWithPatient | null>(null);
   const [formData, setFormData] = useState({
     visualAcuityRight: '',
     visualAcuityLeft: '',
@@ -31,73 +34,75 @@ export default function EyeMeasurementPage() {
     notes: '',
   });
 
-  const waitingPatients = getVisitsByStatus('eye_measurement');
+  const { data: existingMeasurement } = useEyeMeasurementByVisit(selectedVisit?.id || null);
 
-  const handleSelectPatient = (visit: Visit) => {
+  const handleSelectPatient = (visit: VisitWithPatient) => {
     setSelectedVisit(visit);
-    // Check if measurement already exists
-    const existing = getEyeMeasurementByVisit(visit.id);
-    if (existing) {
-      setFormData({
-        visualAcuityRight: existing.visualAcuityRight || '',
-        visualAcuityLeft: existing.visualAcuityLeft || '',
-        rightSph: existing.rightEye.sph?.toString() || '',
-        rightCyl: existing.rightEye.cyl?.toString() || '',
-        rightAxis: existing.rightEye.axis?.toString() || '',
-        leftSph: existing.leftEye.sph?.toString() || '',
-        leftCyl: existing.leftEye.cyl?.toString() || '',
-        leftAxis: existing.leftEye.axis?.toString() || '',
-        pd: existing.pd?.toString() || '',
-        iopRight: existing.iopRight?.toString() || '',
-        iopLeft: existing.iopLeft?.toString() || '',
-        notes: existing.notes || '',
-      });
-    } else {
-      setFormData({
-        visualAcuityRight: '',
-        visualAcuityLeft: '',
-        rightSph: '',
-        rightCyl: '',
-        rightAxis: '',
-        leftSph: '',
-        leftCyl: '',
-        leftAxis: '',
-        pd: '',
-        iopRight: '',
-        iopLeft: '',
-        notes: '',
-      });
-    }
+    // Reset form
+    setFormData({
+      visualAcuityRight: '',
+      visualAcuityLeft: '',
+      rightSph: '',
+      rightCyl: '',
+      rightAxis: '',
+      leftSph: '',
+      leftCyl: '',
+      leftAxis: '',
+      pd: '',
+      iopRight: '',
+      iopLeft: '',
+      notes: '',
+    });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Pre-fill form if measurement exists
+  useState(() => {
+    if (existingMeasurement) {
+      setFormData({
+        visualAcuityRight: existingMeasurement.visual_acuity_right || '',
+        visualAcuityLeft: existingMeasurement.visual_acuity_left || '',
+        rightSph: existingMeasurement.right_sph?.toString() || '',
+        rightCyl: existingMeasurement.right_cyl?.toString() || '',
+        rightAxis: existingMeasurement.right_axis?.toString() || '',
+        leftSph: existingMeasurement.left_sph?.toString() || '',
+        leftCyl: existingMeasurement.left_cyl?.toString() || '',
+        leftAxis: existingMeasurement.left_axis?.toString() || '',
+        pd: existingMeasurement.pd?.toString() || '',
+        iopRight: existingMeasurement.iop_right?.toString() || '',
+        iopLeft: existingMeasurement.iop_left?.toString() || '',
+        notes: existingMeasurement.notes || '',
+      });
+    }
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVisit || !user) return;
 
-    addEyeMeasurement({
-      visitId: selectedVisit.id,
-      visualAcuityRight: formData.visualAcuityRight || undefined,
-      visualAcuityLeft: formData.visualAcuityLeft || undefined,
-      rightEye: {
-        sph: formData.rightSph ? parseFloat(formData.rightSph) : undefined,
-        cyl: formData.rightCyl ? parseFloat(formData.rightCyl) : undefined,
-        axis: formData.rightAxis ? parseFloat(formData.rightAxis) : undefined,
-      },
-      leftEye: {
-        sph: formData.leftSph ? parseFloat(formData.leftSph) : undefined,
-        cyl: formData.leftCyl ? parseFloat(formData.leftCyl) : undefined,
-        axis: formData.leftAxis ? parseFloat(formData.leftAxis) : undefined,
-      },
-      pd: formData.pd ? parseFloat(formData.pd) : undefined,
-      iopRight: formData.iopRight ? parseFloat(formData.iopRight) : undefined,
-      iopLeft: formData.iopLeft ? parseFloat(formData.iopLeft) : undefined,
-      notes: formData.notes || undefined,
-      createdBy: user.id,
-    });
+    try {
+      await addMeasurementMutation.mutateAsync({
+        visit_id: selectedVisit.id,
+        visual_acuity_right: formData.visualAcuityRight || null,
+        visual_acuity_left: formData.visualAcuityLeft || null,
+        right_sph: formData.rightSph ? parseFloat(formData.rightSph) : null,
+        right_cyl: formData.rightCyl ? parseFloat(formData.rightCyl) : null,
+        right_axis: formData.rightAxis ? parseInt(formData.rightAxis) : null,
+        left_sph: formData.leftSph ? parseFloat(formData.leftSph) : null,
+        left_cyl: formData.leftCyl ? parseFloat(formData.leftCyl) : null,
+        left_axis: formData.leftAxis ? parseInt(formData.leftAxis) : null,
+        pd: formData.pd ? parseFloat(formData.pd) : null,
+        iop_right: formData.iopRight ? parseFloat(formData.iopRight) : null,
+        iop_left: formData.iopLeft ? parseFloat(formData.iopLeft) : null,
+        notes: formData.notes || null,
+        created_by: user.id,
+      });
 
-    updateVisitStatus(selectedVisit.id, 'with_doctor');
-    toast.success('Eye measurements saved! Patient sent to doctor.');
-    setSelectedVisit(null);
+      await updateStatusMutation.mutateAsync({ visitId: selectedVisit.id, status: 'with_doctor' });
+      toast.success('Eye measurements saved! Patient sent to doctor.');
+      setSelectedVisit(null);
+    } catch (error) {
+      toast.error('Failed to save measurements');
+    }
   };
 
   return (
@@ -117,7 +122,11 @@ export default function EyeMeasurementPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {waitingPatients.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : waitingPatients.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No patients waiting</p>
             ) : (
               <div className="space-y-2">
@@ -137,12 +146,12 @@ export default function EyeMeasurementPage() {
                           ? 'bg-primary-foreground/20 text-primary-foreground'
                           : 'gradient-primary text-primary-foreground'
                       }`}>
-                        {visit.queueNumber}
+                        {visit.queue_number}
                       </div>
                       <div>
-                        <p className="font-medium">{visit.patient?.name}</p>
+                        <p className="font-medium">{visit.patients?.name}</p>
                         <p className={`text-xs ${selectedVisit?.id === visit.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                          {visit.patient?.age}y · {visit.patient?.gender}
+                          {visit.patients?.age}y · {visit.patients?.gender}
                         </p>
                       </div>
                     </div>
@@ -308,7 +317,14 @@ export default function EyeMeasurementPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full gradient-primary">
+                <Button 
+                  type="submit" 
+                  className="w-full gradient-primary"
+                  disabled={addMeasurementMutation.isPending || updateStatusMutation.isPending}
+                >
+                  {(addMeasurementMutation.isPending || updateStatusMutation.isPending) && (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  )}
                   <Send className="w-4 h-4 mr-2" />
                   Save & Send to Doctor
                 </Button>

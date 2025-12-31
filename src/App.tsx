@@ -4,8 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import { ClinicDataProvider } from "./contexts/ClinicDataContext";
-
 import LoginPage from "./pages/LoginPage";
 import ReceptionDashboard from "./pages/reception/ReceptionDashboard";
 import RegisterPatient from "./pages/reception/RegisterPatient";
@@ -24,40 +22,27 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <ClinicDataProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="/login" element={<LoginPage />} />
-              
-              {/* Reception Routes */}
-              <Route path="/reception" element={<ReceptionDashboard />} />
-              <Route path="/reception/register" element={<RegisterPatient />} />
-              <Route path="/reception/queue" element={<QueueManagement />} />
-              
-              {/* Eye Measurement Routes */}
-              <Route path="/eye-measurement" element={<EyeMeasurementPage />} />
-              
-              {/* Doctor Routes */}
-              <Route path="/doctor" element={<DoctorPage />} />
-              
-              {/* Pharmacy Routes */}
-              <Route path="/pharmacy" element={<PharmacyPage />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/staff" element={<StaffManagement />} />
-              <Route path="/admin/medicines" element={<MedicineManagement />} />
-              <Route path="/admin/reports" element={<ReportsPage />} />
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ClinicDataProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reception" element={<ReceptionDashboard />} />
+            <Route path="/reception/register" element={<RegisterPatient />} />
+            <Route path="/reception/queue" element={<QueueManagement />} />
+            <Route path="/eye-measurement" element={<EyeMeasurementPage />} />
+            <Route path="/doctor" element={<DoctorPage />} />
+            <Route path="/pharmacy" element={<PharmacyPage />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/staff" element={<StaffManagement />} />
+            <Route path="/admin/medicines" element={<MedicineManagement />} />
+            <Route path="/admin/reports" element={<ReportsPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

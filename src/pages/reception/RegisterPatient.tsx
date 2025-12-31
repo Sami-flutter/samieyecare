@@ -7,22 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useClinicData } from '@/contexts/ClinicDataContext';
+import { useAddPatient } from '@/hooks/usePatients';
+import { useCreateVisit } from '@/hooks/useVisits';
 import { toast } from 'sonner';
-import { UserPlus, ArrowLeft } from 'lucide-react';
+import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+
+type Gender = Database['public']['Enums']['gender'];
 
 export default function RegisterPatient() {
   const navigate = useNavigate();
-  const { addPatient, createVisit } = useClinicData();
+  const addPatientMutation = useAddPatient();
+  const createVisitMutation = useCreateVisit();
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     age: '',
-    gender: '' as 'male' | 'female' | 'other' | '',
+    gender: '' as Gender | '',
   });
   const [createVisitAfter, setCreateVisitAfter] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.phone || !formData.age || !formData.gender) {
@@ -30,21 +37,29 @@ export default function RegisterPatient() {
       return;
     }
 
-    const patient = addPatient({
-      name: formData.name,
-      phone: formData.phone,
-      age: parseInt(formData.age),
-      gender: formData.gender as 'male' | 'female' | 'other',
-    });
+    setIsSubmitting(true);
 
-    if (createVisitAfter) {
-      const visit = createVisit(patient.id);
-      toast.success(`Patient registered! Queue #${visit.queueNumber}`);
-    } else {
-      toast.success('Patient registered successfully!');
+    try {
+      const patient = await addPatientMutation.mutateAsync({
+        name: formData.name,
+        phone: formData.phone,
+        age: parseInt(formData.age),
+        gender: formData.gender as Gender,
+      });
+
+      if (createVisitAfter) {
+        const visit = await createVisitMutation.mutateAsync(patient.id);
+        toast.success(`Patient registered! Queue #${visit.queue_number}`);
+      } else {
+        toast.success('Patient registered successfully!');
+      }
+
+      navigate('/reception');
+    } catch (error) {
+      toast.error('Failed to register patient');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    navigate('/reception');
   };
 
   return (
@@ -105,7 +120,7 @@ export default function RegisterPatient() {
 
               <div className="space-y-2">
                 <Label>Gender *</Label>
-                <Select value={formData.gender} onValueChange={(value: 'male' | 'female' | 'other') => setFormData({ ...formData, gender: value })}>
+                <Select value={formData.gender} onValueChange={(value: Gender) => setFormData({ ...formData, gender: value })}>
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
@@ -135,7 +150,8 @@ export default function RegisterPatient() {
               <Button type="button" variant="outline" onClick={() => navigate('/reception')} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 gradient-primary">
+              <Button type="submit" className="flex-1 gradient-primary" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Register Patient
               </Button>
             </div>
