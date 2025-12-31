@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 
 import HomeRedirect from "./pages/HomeRedirect";
+import NoAccessPage from "./pages/NoAccessPage";
+import { RequireRole } from "@/components/auth/RequireRole";
+
 import LoginPage from "./pages/LoginPage";
 import ReceptionDashboard from "./pages/reception/ReceptionDashboard";
 import RegisterPatient from "./pages/reception/RegisterPatient";
@@ -31,26 +34,98 @@ const App = () => (
           <Routes>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/no-access" element={<NoAccessPage />} />
+
             {/* Reception Routes */}
-            <Route path="/reception" element={<ReceptionDashboard />} />
-            <Route path="/reception/register" element={<RegisterPatient />} />
-            <Route path="/reception/queue" element={<QueueManagement />} />
-            
+            <Route
+              path="/reception"
+              element={
+                <RequireRole allowed={["reception"]}>
+                  <ReceptionDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/reception/register"
+              element={
+                <RequireRole allowed={["reception"]}>
+                  <RegisterPatient />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/reception/queue"
+              element={
+                <RequireRole allowed={["reception"]}>
+                  <QueueManagement />
+                </RequireRole>
+              }
+            />
+
             {/* Eye Measurement Routes */}
-            <Route path="/eye-measurement" element={<EyeMeasurementPage />} />
-            
+            <Route
+              path="/eye-measurement"
+              element={
+                <RequireRole allowed={["eye_measurement"]}>
+                  <EyeMeasurementPage />
+                </RequireRole>
+              }
+            />
+
             {/* Doctor Routes */}
-            <Route path="/doctor" element={<DoctorPage />} />
-            
+            <Route
+              path="/doctor"
+              element={
+                <RequireRole allowed={["doctor"]}>
+                  <DoctorPage />
+                </RequireRole>
+              }
+            />
+
             {/* Pharmacy Routes */}
-            <Route path="/pharmacy" element={<PharmacyPage />} />
-            
+            <Route
+              path="/pharmacy"
+              element={
+                <RequireRole allowed={["pharmacy"]}>
+                  <PharmacyPage />
+                </RequireRole>
+              }
+            />
+
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/staff" element={<StaffManagement />} />
-            <Route path="/admin/medicines" element={<MedicineManagement />} />
-            <Route path="/admin/reports" element={<ReportsPage />} />
-            
+            <Route
+              path="/admin"
+              element={
+                <RequireRole allowed={["admin"]}>
+                  <AdminDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin/staff"
+              element={
+                <RequireRole allowed={["admin"]}>
+                  <StaffManagement />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin/medicines"
+              element={
+                <RequireRole allowed={["admin"]}>
+                  <MedicineManagement />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <RequireRole allowed={["admin"]}>
+                  <ReportsPage />
+                </RequireRole>
+              }
+            />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -37,12 +37,18 @@ export default function LoginPage() {
   const { login, signup, isAuthenticated, roles, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (once roles are loaded)
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      navigate('/', { replace: true });
+    if (!isAuthenticated || authLoading) return;
+
+    if (roles.length === 0) {
+      navigate('/no-access', { replace: true });
+      return;
     }
-  }, [isAuthenticated, authLoading, navigate]);
+
+    const primaryRole = roles[0];
+    navigate(roleRoutes[primaryRole] || '/reception', { replace: true });
+  }, [isAuthenticated, roles, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +61,7 @@ export default function LoginPage() {
         setError(error);
       } else {
         toast.success('Welcome back!');
-        navigate('/', { replace: true });
+        // Redirect will happen via useEffect once roles are available
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -75,7 +81,7 @@ export default function LoginPage() {
         setError(error);
       } else {
         toast.success('Account created! You are now logged in.');
-        navigate('/', { replace: true });
+        // Redirect will happen via useEffect once roles are available
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
