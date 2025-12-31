@@ -7,14 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCreatePatient, useCreateVisit } from '@/hooks/useClinicData';
+import { useClinicData } from '@/contexts/ClinicDataContext';
 import { toast } from 'sonner';
-import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
+import { UserPlus, ArrowLeft } from 'lucide-react';
 
 export default function RegisterPatient() {
   const navigate = useNavigate();
-  const createPatient = useCreatePatient();
-  const createVisit = useCreateVisit();
+  const { addPatient, createVisit } = useClinicData();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -23,7 +22,7 @@ export default function RegisterPatient() {
   });
   const [createVisitAfter, setCreateVisitAfter] = useState(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.phone || !formData.age || !formData.gender) {
@@ -31,26 +30,22 @@ export default function RegisterPatient() {
       return;
     }
 
-    try {
-      const patient = await createPatient.mutateAsync({
-        name: formData.name,
-        phone: formData.phone,
-        age: parseInt(formData.age),
-        gender: formData.gender as 'male' | 'female' | 'other',
-      });
+    const patient = addPatient({
+      name: formData.name,
+      phone: formData.phone,
+      age: parseInt(formData.age),
+      gender: formData.gender as 'male' | 'female' | 'other',
+    });
 
-      if (createVisitAfter) {
-        const visit = await createVisit.mutateAsync({ patientId: patient.id });
-        toast.success(`Patient registered! Queue #${visit.queue_number}`);
-      }
-
-      navigate('/reception');
-    } catch (error) {
-      // Error handled by mutation
+    if (createVisitAfter) {
+      const visit = createVisit(patient.id);
+      toast.success(`Patient registered! Queue #${visit.queueNumber}`);
+    } else {
+      toast.success('Patient registered successfully!');
     }
-  };
 
-  const isLoading = createPatient.isPending || createVisit.isPending;
+    navigate('/reception');
+  };
 
   return (
     <AppShell>
@@ -140,8 +135,7 @@ export default function RegisterPatient() {
               <Button type="button" variant="outline" onClick={() => navigate('/reception')} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 gradient-primary" disabled={isLoading}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              <Button type="submit" className="flex-1 gradient-primary">
                 Register Patient
               </Button>
             </div>

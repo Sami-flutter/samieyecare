@@ -2,12 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-
-import HomeRedirect from "./pages/HomeRedirect";
-import NoAccessPage from "./pages/NoAccessPage";
-import { RequireRole } from "@/components/auth/RequireRole";
+import { ClinicDataProvider } from "./contexts/ClinicDataContext";
 
 import LoginPage from "./pages/LoginPage";
 import ReceptionDashboard from "./pages/reception/ReceptionDashboard";
@@ -27,109 +24,40 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomeRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/no-access" element={<NoAccessPage />} />
-
-            {/* Reception Routes */}
-            <Route
-              path="/reception"
-              element={
-                <RequireRole allowed={["reception"]}>
-                  <ReceptionDashboard />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/reception/register"
-              element={
-                <RequireRole allowed={["reception"]}>
-                  <RegisterPatient />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/reception/queue"
-              element={
-                <RequireRole allowed={["reception"]}>
-                  <QueueManagement />
-                </RequireRole>
-              }
-            />
-
-            {/* Eye Measurement Routes */}
-            <Route
-              path="/eye-measurement"
-              element={
-                <RequireRole allowed={["eye_measurement"]}>
-                  <EyeMeasurementPage />
-                </RequireRole>
-              }
-            />
-
-            {/* Doctor Routes */}
-            <Route
-              path="/doctor"
-              element={
-                <RequireRole allowed={["doctor"]}>
-                  <DoctorPage />
-                </RequireRole>
-              }
-            />
-
-            {/* Pharmacy Routes */}
-            <Route
-              path="/pharmacy"
-              element={
-                <RequireRole allowed={["pharmacy"]}>
-                  <PharmacyPage />
-                </RequireRole>
-              }
-            />
-
-            {/* Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <RequireRole allowed={["admin"]}>
-                  <AdminDashboard />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/admin/staff"
-              element={
-                <RequireRole allowed={["admin"]}>
-                  <StaffManagement />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/admin/medicines"
-              element={
-                <RequireRole allowed={["admin"]}>
-                  <MedicineManagement />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/admin/reports"
-              element={
-                <RequireRole allowed={["admin"]}>
-                  <ReportsPage />
-                </RequireRole>
-              }
-            />
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ClinicDataProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<LoginPage />} />
+              
+              {/* Reception Routes */}
+              <Route path="/reception" element={<ReceptionDashboard />} />
+              <Route path="/reception/register" element={<RegisterPatient />} />
+              <Route path="/reception/queue" element={<QueueManagement />} />
+              
+              {/* Eye Measurement Routes */}
+              <Route path="/eye-measurement" element={<EyeMeasurementPage />} />
+              
+              {/* Doctor Routes */}
+              <Route path="/doctor" element={<DoctorPage />} />
+              
+              {/* Pharmacy Routes */}
+              <Route path="/pharmacy" element={<PharmacyPage />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/staff" element={<StaffManagement />} />
+              <Route path="/admin/medicines" element={<MedicineManagement />} />
+              <Route path="/admin/reports" element={<ReportsPage />} />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ClinicDataProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

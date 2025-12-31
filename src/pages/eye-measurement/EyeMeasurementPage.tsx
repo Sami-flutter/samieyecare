@@ -6,18 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useVisitsByStatus, useEyeMeasurement, useCreateEyeMeasurement, useUpdateVisitStatus, Visit } from '@/hooks/useClinicData';
+import { useClinicData } from '@/contexts/ClinicDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Eye, Send, User, Loader2 } from 'lucide-react';
+import { Eye, Send, User } from 'lucide-react';
+import { Visit } from '@/types/clinic';
 
 export default function EyeMeasurementPage() {
   const { user } = useAuth();
-  const { data: waitingPatients = [], isLoading } = useVisitsByStatus('eye_measurement');
-  const createMeasurement = useCreateEyeMeasurement();
-  const updateStatus = useUpdateVisitStatus();
-  
-  const [selectedVisit, setSelectedVisit] = useState<(Visit & { patient: any }) | null>(null);
+  const { getVisitsByStatus, addEyeMeasurement, updateVisitStatus, getEyeMeasurementByVisit } = useClinicData();
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [formData, setFormData] = useState({
     visualAcuityRight: '',
     visualAcuityLeft: '',
@@ -33,58 +31,81 @@ export default function EyeMeasurementPage() {
     notes: '',
   });
 
-  const handleSelectPatient = (visit: Visit & { patient: any }) => {
+  const waitingPatients = getVisitsByStatus('eye_measurement');
+
+  const handleSelectPatient = (visit: Visit) => {
     setSelectedVisit(visit);
-    setFormData({
-      visualAcuityRight: '',
-      visualAcuityLeft: '',
-      rightSph: '',
-      rightCyl: '',
-      rightAxis: '',
-      leftSph: '',
-      leftCyl: '',
-      leftAxis: '',
-      pd: '',
-      iopRight: '',
-      iopLeft: '',
-      notes: '',
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVisit || !user) return;
-
-    try {
-      await createMeasurement.mutateAsync({
-        visit_id: selectedVisit.id,
-        visual_acuity_right: formData.visualAcuityRight || undefined,
-        visual_acuity_left: formData.visualAcuityLeft || undefined,
-        right_sph: formData.rightSph ? parseFloat(formData.rightSph) : undefined,
-        right_cyl: formData.rightCyl ? parseFloat(formData.rightCyl) : undefined,
-        right_axis: formData.rightAxis ? parseInt(formData.rightAxis) : undefined,
-        left_sph: formData.leftSph ? parseFloat(formData.leftSph) : undefined,
-        left_cyl: formData.leftCyl ? parseFloat(formData.leftCyl) : undefined,
-        left_axis: formData.leftAxis ? parseInt(formData.leftAxis) : undefined,
-        pd: formData.pd ? parseFloat(formData.pd) : undefined,
-        iop_right: formData.iopRight ? parseFloat(formData.iopRight) : undefined,
-        iop_left: formData.iopLeft ? parseFloat(formData.iopLeft) : undefined,
-        notes: formData.notes || undefined,
+    // Check if measurement already exists
+    const existing = getEyeMeasurementByVisit(visit.id);
+    if (existing) {
+      setFormData({
+        visualAcuityRight: existing.visualAcuityRight || '',
+        visualAcuityLeft: existing.visualAcuityLeft || '',
+        rightSph: existing.rightEye.sph?.toString() || '',
+        rightCyl: existing.rightEye.cyl?.toString() || '',
+        rightAxis: existing.rightEye.axis?.toString() || '',
+        leftSph: existing.leftEye.sph?.toString() || '',
+        leftCyl: existing.leftEye.cyl?.toString() || '',
+        leftAxis: existing.leftEye.axis?.toString() || '',
+        pd: existing.pd?.toString() || '',
+        iopRight: existing.iopRight?.toString() || '',
+        iopLeft: existing.iopLeft?.toString() || '',
+        notes: existing.notes || '',
       });
-
-      await updateStatus.mutateAsync({ visitId: selectedVisit.id, status: 'with_doctor' });
-      toast.success('Eye measurements saved! Patient sent to doctor.');
-      setSelectedVisit(null);
-    } catch (error) {
-      // Error handled by mutation
+    } else {
+      setFormData({
+        visualAcuityRight: '',
+        visualAcuityLeft: '',
+        rightSph: '',
+        rightCyl: '',
+        rightAxis: '',
+        leftSph: '',
+        leftCyl: '',
+        leftAxis: '',
+        pd: '',
+        iopRight: '',
+        iopLeft: '',
+        notes: '',
+      });
     }
   };
 
-  const isPending = createMeasurement.isPending || updateStatus.isPending;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVisit || !user) return;
+
+    addEyeMeasurement({
+      visitId: selectedVisit.id,
+      visualAcuityRight: formData.visualAcuityRight || undefined,
+      visualAcuityLeft: formData.visualAcuityLeft || undefined,
+      rightEye: {
+        sph: formData.rightSph ? parseFloat(formData.rightSph) : undefined,
+        cyl: formData.rightCyl ? parseFloat(formData.rightCyl) : undefined,
+        axis: formData.rightAxis ? parseFloat(formData.rightAxis) : undefined,
+      },
+      leftEye: {
+        sph: formData.leftSph ? parseFloat(formData.leftSph) : undefined,
+        cyl: formData.leftCyl ? parseFloat(formData.leftCyl) : undefined,
+        axis: formData.leftAxis ? parseFloat(formData.leftAxis) : undefined,
+      },
+      pd: formData.pd ? parseFloat(formData.pd) : undefined,
+      iopRight: formData.iopRight ? parseFloat(formData.iopRight) : undefined,
+      iopLeft: formData.iopLeft ? parseFloat(formData.iopLeft) : undefined,
+      notes: formData.notes || undefined,
+      createdBy: user.id,
+    });
+
+    updateVisitStatus(selectedVisit.id, 'with_doctor');
+    toast.success('Eye measurements saved! Patient sent to doctor.');
+    setSelectedVisit(null);
+  };
 
   return (
     <AppShell>
-      <PageHeader title="Eye Measurement" description="Record patient eye test data" />
+      <PageHeader 
+        title="Eye Measurement" 
+        description="Record patient eye test data"
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Patient List */}
@@ -96,11 +117,7 @@ export default function EyeMeasurementPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : waitingPatients.length === 0 ? (
+            {waitingPatients.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No patients waiting</p>
             ) : (
               <div className="space-y-2">
@@ -120,7 +137,7 @@ export default function EyeMeasurementPage() {
                           ? 'bg-primary-foreground/20 text-primary-foreground'
                           : 'gradient-primary text-primary-foreground'
                       }`}>
-                        {visit.queue_number}
+                        {visit.queueNumber}
                       </div>
                       <div>
                         <p className="font-medium">{visit.patient?.name}</p>
@@ -180,15 +197,32 @@ export default function EyeMeasurementPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>SPH</Label>
-                      <Input type="number" step="0.25" placeholder="-2.00" value={formData.rightSph} onChange={(e) => setFormData({ ...formData, rightSph: e.target.value })} />
+                      <Input
+                        type="number"
+                        step="0.25"
+                        placeholder="-2.00"
+                        value={formData.rightSph}
+                        onChange={(e) => setFormData({ ...formData, rightSph: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>CYL</Label>
-                      <Input type="number" step="0.25" placeholder="-0.50" value={formData.rightCyl} onChange={(e) => setFormData({ ...formData, rightCyl: e.target.value })} />
+                      <Input
+                        type="number"
+                        step="0.25"
+                        placeholder="-0.50"
+                        value={formData.rightCyl}
+                        onChange={(e) => setFormData({ ...formData, rightCyl: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>AXIS</Label>
-                      <Input type="number" placeholder="90" value={formData.rightAxis} onChange={(e) => setFormData({ ...formData, rightAxis: e.target.value })} />
+                      <Input
+                        type="number"
+                        placeholder="90"
+                        value={formData.rightAxis}
+                        onChange={(e) => setFormData({ ...formData, rightAxis: e.target.value })}
+                      />
                     </div>
                   </div>
                 </div>
@@ -199,15 +233,32 @@ export default function EyeMeasurementPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>SPH</Label>
-                      <Input type="number" step="0.25" placeholder="-2.00" value={formData.leftSph} onChange={(e) => setFormData({ ...formData, leftSph: e.target.value })} />
+                      <Input
+                        type="number"
+                        step="0.25"
+                        placeholder="-2.00"
+                        value={formData.leftSph}
+                        onChange={(e) => setFormData({ ...formData, leftSph: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>CYL</Label>
-                      <Input type="number" step="0.25" placeholder="-0.50" value={formData.leftCyl} onChange={(e) => setFormData({ ...formData, leftCyl: e.target.value })} />
+                      <Input
+                        type="number"
+                        step="0.25"
+                        placeholder="-0.50"
+                        value={formData.leftCyl}
+                        onChange={(e) => setFormData({ ...formData, leftCyl: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>AXIS</Label>
-                      <Input type="number" placeholder="90" value={formData.leftAxis} onChange={(e) => setFormData({ ...formData, leftAxis: e.target.value })} />
+                      <Input
+                        type="number"
+                        placeholder="90"
+                        value={formData.leftAxis}
+                        onChange={(e) => setFormData({ ...formData, leftAxis: e.target.value })}
+                      />
                     </div>
                   </div>
                 </div>
@@ -218,15 +269,30 @@ export default function EyeMeasurementPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>PD (mm)</Label>
-                      <Input type="number" placeholder="62" value={formData.pd} onChange={(e) => setFormData({ ...formData, pd: e.target.value })} />
+                      <Input
+                        type="number"
+                        placeholder="62"
+                        value={formData.pd}
+                        onChange={(e) => setFormData({ ...formData, pd: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>IOP Right</Label>
-                      <Input type="number" placeholder="15" value={formData.iopRight} onChange={(e) => setFormData({ ...formData, iopRight: e.target.value })} />
+                      <Input
+                        type="number"
+                        placeholder="15"
+                        value={formData.iopRight}
+                        onChange={(e) => setFormData({ ...formData, iopRight: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>IOP Left</Label>
-                      <Input type="number" placeholder="15" value={formData.iopLeft} onChange={(e) => setFormData({ ...formData, iopLeft: e.target.value })} />
+                      <Input
+                        type="number"
+                        placeholder="15"
+                        value={formData.iopLeft}
+                        onChange={(e) => setFormData({ ...formData, iopLeft: e.target.value })}
+                      />
                     </div>
                   </div>
                 </div>
@@ -234,11 +300,16 @@ export default function EyeMeasurementPage() {
                 {/* Notes */}
                 <div className="space-y-2">
                   <Label>Notes</Label>
-                  <Textarea placeholder="Additional observations..." value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3} />
+                  <Textarea
+                    placeholder="Additional observations..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={3}
+                  />
                 </div>
 
-                <Button type="submit" className="w-full gradient-primary" disabled={isPending}>
-                  {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                <Button type="submit" className="w-full gradient-primary">
+                  <Send className="w-4 h-4 mr-2" />
                   Save & Send to Doctor
                 </Button>
               </form>

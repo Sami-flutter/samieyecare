@@ -2,43 +2,33 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { usePendingPrescriptions, useMedicines, useLowStockMedicines, useDispensePrescription, useUpdateVisitStatus } from '@/hooks/useClinicData';
+import { useClinicData } from '@/contexts/ClinicDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Pill, CheckCircle, Package, AlertTriangle, Loader2 } from 'lucide-react';
+import { Pill, CheckCircle, Package, AlertTriangle } from 'lucide-react';
 
 export default function PharmacyPage() {
   const { user } = useAuth();
-  const { data: pendingPrescriptions = [], isLoading } = usePendingPrescriptions();
-  const { data: medicines = [] } = useMedicines();
-  const { data: lowStockMeds = [] } = useLowStockMedicines();
-  const dispensePrescription = useDispensePrescription();
-  const updateStatus = useUpdateVisitStatus();
+  const { getVisitsByStatus, getPrescriptionByVisit, dispensePrescription, updateVisitStatus, patients, visits, medicines } = useClinicData();
+  
+  const pharmacyVisits = getVisitsByStatus('pharmacy');
 
-  const handleDispense = async (visitId: string, prescriptionId: string, prescriptionMedicines: any[]) => {
+  const handleDispense = (visitId: string, prescriptionId: string) => {
     if (!user) return;
     
-    try {
-      await dispensePrescription.mutateAsync({ 
-        prescriptionId, 
-        medicines: prescriptionMedicines 
-      });
-      await updateStatus.mutateAsync({ 
-        visitId, 
-        status: 'completed', 
-        completedAt: new Date().toISOString() 
-      });
-      toast.success('Prescription dispensed! Visit completed.');
-    } catch (error) {
-      // Error handled by mutation
-    }
+    dispensePrescription(prescriptionId, user.id);
+    updateVisitStatus(visitId, 'completed');
+    toast.success('Prescription dispensed! Visit completed.');
   };
 
-  const isPending = dispensePrescription.isPending || updateStatus.isPending;
+  const lowStockMeds = medicines.filter(m => m.stock <= m.lowStockThreshold);
 
   return (
     <AppShell>
-      <PageHeader title="Pharmacy" description="Dispense prescriptions and manage stock" />
+      <PageHeader 
+        title="Pharmacy" 
+        description="Dispense prescriptions and manage stock"
+      />
 
       {/* Low Stock Alert */}
       {lowStockMeds.length > 0 && (
@@ -64,28 +54,24 @@ export default function PharmacyPage() {
           Pending Prescriptions
         </h2>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
-        ) : pendingPrescriptions.length === 0 ? (
+        {pharmacyVisits.length === 0 ? (
           <Card className="shadow-soft">
             <CardContent className="py-12 text-center text-muted-foreground">
               No prescriptions pending
             </CardContent>
           </Card>
         ) : (
-          pendingPrescriptions.map((prescription: any) => {
-            const visit = prescription.visit;
-            if (!visit) return null;
+          pharmacyVisits.map((visit) => {
+            const prescription = getPrescriptionByVisit(visit.id);
+            if (!prescription) return null;
 
             return (
-              <Card key={prescription.id} className="shadow-soft hover:shadow-medium transition-shadow">
+              <Card key={visit.id} className="shadow-soft hover:shadow-medium transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                        {visit.queue_number}
+                        {visit.queueNumber}
                       </div>
                       <div>
                         <CardTitle className="text-lg">{visit.patient?.name}</CardTitle>
@@ -95,11 +81,10 @@ export default function PharmacyPage() {
                       </div>
                     </div>
                     <Button 
-                      onClick={() => handleDispense(visit.id, prescription.id, prescription.medicines || [])}
+                      onClick={() => handleDispense(visit.id, prescription.id)}
                       className="gradient-primary"
-                      disabled={isPending}
                     >
-                      {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                      <CheckCircle className="w-4 h-4 mr-2" />
                       Dispense
                     </Button>
                   </div>
@@ -113,23 +98,23 @@ export default function PharmacyPage() {
                     </div>
 
                     {/* Medicines */}
-                    {prescription.medicines && prescription.medicines.length > 0 && (
+                    {prescription.medicines.length > 0 && (
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Medicines</p>
                         <div className="grid gap-2">
-                          {prescription.medicines.map((med: any) => {
-                            const medicine = medicines.find(m => m.id === med.medicine_id);
+                          {prescription.medicines.map((med) => {
+                            const medicine = medicines.find(m => m.id === med.medicineId);
                             const isLowStock = medicine && medicine.stock <= med.quantity;
                             
                             return (
                               <div 
-                                key={med.id} 
+                                key={med.medicineId} 
                                 className={`flex items-center justify-between p-3 rounded-lg ${isLowStock ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
                               >
                                 <div className="flex items-center gap-3">
                                   <Package className={`w-4 h-4 ${isLowStock ? 'text-warning' : 'text-muted-foreground'}`} />
                                   <div>
-                                    <p className="font-medium">{med.medicine_name}</p>
+                                    <p className="font-medium">{med.medicineName}</p>
                                     <p className="text-sm text-muted-foreground">{med.dosage}</p>
                                   </div>
                                 </div>
@@ -149,10 +134,10 @@ export default function PharmacyPage() {
                     )}
 
                     {/* Follow-up Note */}
-                    {prescription.follow_up_note && (
+                    {prescription.followUpNote && (
                       <div className="p-3 rounded-lg bg-info/10 border border-info/20">
                         <p className="text-xs text-info uppercase tracking-wide">Follow-up Note</p>
-                        <p className="text-sm mt-1">{prescription.follow_up_note}</p>
+                        <p className="text-sm mt-1">{prescription.followUpNote}</p>
                       </div>
                     )}
                   </div>

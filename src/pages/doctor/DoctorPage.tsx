@@ -7,30 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useVisitsByStatus, useEyeMeasurement, useMedicines, useCreatePrescription, useUpdateVisitStatus, Visit, PrescriptionMedicine } from '@/hooks/useClinicData';
+import { useClinicData } from '@/contexts/ClinicDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Stethoscope, Eye, Send, User, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Stethoscope, Eye, Send, User, Plus, Trash2 } from 'lucide-react';
+import { Visit, PrescriptionMedicine } from '@/types/clinic';
 
 export default function DoctorPage() {
   const { user } = useAuth();
-  const { data: waitingPatients = [], isLoading } = useVisitsByStatus('with_doctor');
-  const { data: medicines = [] } = useMedicines();
-  const createPrescription = useCreatePrescription();
-  const updateStatus = useUpdateVisitStatus();
-  
-  const [selectedVisit, setSelectedVisit] = useState<(Visit & { patient: any }) | null>(null);
+  const { getVisitsByStatus, getEyeMeasurementByVisit, addPrescription, updateVisitStatus, medicines } = useClinicData();
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [diagnosis, setDiagnosis] = useState('');
   const [followUpNote, setFollowUpNote] = useState('');
-  const [prescriptionMeds, setPrescriptionMeds] = useState<Omit<PrescriptionMedicine, 'id' | 'prescription_id'>[]>([]);
+  const [prescriptionMeds, setPrescriptionMeds] = useState<PrescriptionMedicine[]>([]);
   const [selectedMedicine, setSelectedMedicine] = useState('');
   const [medQuantity, setMedQuantity] = useState('1');
   const [medDosage, setMedDosage] = useState('');
 
-  // Fetch eye measurement for selected visit
-  const { data: eyeMeasurement } = useEyeMeasurement(selectedVisit?.id || '');
+  const waitingPatients = getVisitsByStatus('with_doctor');
 
-  const handleSelectPatient = (visit: Visit & { patient: any }) => {
+  const handleSelectPatient = (visit: Visit) => {
     setSelectedVisit(visit);
     setDiagnosis('');
     setFollowUpNote('');
@@ -46,14 +42,14 @@ export default function DoctorPage() {
     const medicine = medicines.find(m => m.id === selectedMedicine);
     if (!medicine) return;
 
-    if (prescriptionMeds.some(m => m.medicine_id === selectedMedicine)) {
+    if (prescriptionMeds.some(m => m.medicineId === selectedMedicine)) {
       toast.error('Medicine already added');
       return;
     }
 
     setPrescriptionMeds([...prescriptionMeds, {
-      medicine_id: selectedMedicine,
-      medicine_name: medicine.name,
+      medicineId: selectedMedicine,
+      medicineName: medicine.name,
       quantity: parseInt(medQuantity),
       dosage: medDosage,
     }]);
@@ -64,37 +60,37 @@ export default function DoctorPage() {
   };
 
   const handleRemoveMedicine = (medicineId: string) => {
-    setPrescriptionMeds(prescriptionMeds.filter(m => m.medicine_id !== medicineId));
+    setPrescriptionMeds(prescriptionMeds.filter(m => m.medicineId !== medicineId));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVisit || !user || !diagnosis) {
       toast.error('Please enter a diagnosis');
       return;
     }
 
-    try {
-      await createPrescription.mutateAsync({
-        visitId: selectedVisit.id,
-        diagnosis,
-        followUpNote: followUpNote || undefined,
-        medicines: prescriptionMeds,
-      });
+    addPrescription({
+      visitId: selectedVisit.id,
+      diagnosis,
+      medicines: prescriptionMeds,
+      followUpNote: followUpNote || undefined,
+      createdBy: user.id,
+    });
 
-      await updateStatus.mutateAsync({ visitId: selectedVisit.id, status: 'pharmacy' });
-      toast.success('Prescription created! Patient sent to pharmacy.');
-      setSelectedVisit(null);
-    } catch (error) {
-      // Error handled by mutation
-    }
+    updateVisitStatus(selectedVisit.id, 'pharmacy');
+    toast.success('Prescription created! Patient sent to pharmacy.');
+    setSelectedVisit(null);
   };
 
-  const isPending = createPrescription.isPending || updateStatus.isPending;
+  const eyeMeasurement = selectedVisit ? getEyeMeasurementByVisit(selectedVisit.id) : null;
 
   return (
     <AppShell>
-      <PageHeader title="Doctor Dashboard" description="Review patients and create prescriptions" />
+      <PageHeader 
+        title="Doctor Dashboard" 
+        description="Review patients and create prescriptions"
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Patient List */}
@@ -106,11 +102,7 @@ export default function DoctorPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : waitingPatients.length === 0 ? (
+            {waitingPatients.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No patients waiting</p>
             ) : (
               <div className="space-y-2">
@@ -130,7 +122,7 @@ export default function DoctorPage() {
                           ? 'bg-primary-foreground/20 text-primary-foreground'
                           : 'gradient-primary text-primary-foreground'
                       }`}>
-                        {visit.queue_number}
+                        {visit.queueNumber}
                       </div>
                       <div>
                         <p className="font-medium">{visit.patient?.name}</p>
@@ -171,22 +163,22 @@ export default function DoctorPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">VA Right</p>
-                        <p className="font-semibold">{eyeMeasurement.visual_acuity_right || 'N/A'}</p>
+                        <p className="font-semibold">{eyeMeasurement.visualAcuityRight || 'N/A'}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">VA Left</p>
-                        <p className="font-semibold">{eyeMeasurement.visual_acuity_left || 'N/A'}</p>
+                        <p className="font-semibold">{eyeMeasurement.visualAcuityLeft || 'N/A'}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">Right (SPH/CYL/AXIS)</p>
                         <p className="font-semibold">
-                          {eyeMeasurement.right_sph || 0}/{eyeMeasurement.right_cyl || 0}/{eyeMeasurement.right_axis || 0}
+                          {eyeMeasurement.rightEye.sph || 0}/{eyeMeasurement.rightEye.cyl || 0}/{eyeMeasurement.rightEye.axis || 0}
                         </p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">Left (SPH/CYL/AXIS)</p>
                         <p className="font-semibold">
-                          {eyeMeasurement.left_sph || 0}/{eyeMeasurement.left_cyl || 0}/{eyeMeasurement.left_axis || 0}
+                          {eyeMeasurement.leftEye.sph || 0}/{eyeMeasurement.leftEye.cyl || 0}/{eyeMeasurement.leftEye.axis || 0}
                         </p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
@@ -195,7 +187,7 @@ export default function DoctorPage() {
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground">IOP (R/L)</p>
-                        <p className="font-semibold">{eyeMeasurement.iop_right || 'N/A'}/{eyeMeasurement.iop_left || 'N/A'}</p>
+                        <p className="font-semibold">{eyeMeasurement.iopRight || 'N/A'}/{eyeMeasurement.iopLeft || 'N/A'}</p>
                       </div>
                       {eyeMeasurement.notes && (
                         <div className="col-span-2 p-3 rounded-lg bg-muted/50">
@@ -220,7 +212,12 @@ export default function DoctorPage() {
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-2">
                       <Label>Diagnosis *</Label>
-                      <Textarea placeholder="Enter diagnosis..." value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} rows={3} />
+                      <Textarea
+                        placeholder="Enter diagnosis..."
+                        value={diagnosis}
+                        onChange={(e) => setDiagnosis(e.target.value)}
+                        rows={3}
+                      />
                     </div>
 
                     {/* Add Medicine */}
@@ -239,8 +236,19 @@ export default function DoctorPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <Input type="number" placeholder="Qty" value={medQuantity} onChange={(e) => setMedQuantity(e.target.value)} className="w-20" />
-                        <Input placeholder="Dosage (e.g., 2x daily)" value={medDosage} onChange={(e) => setMedDosage(e.target.value)} className="flex-1 min-w-40" />
+                        <Input
+                          type="number"
+                          placeholder="Qty"
+                          value={medQuantity}
+                          onChange={(e) => setMedQuantity(e.target.value)}
+                          className="w-20"
+                        />
+                        <Input
+                          placeholder="Dosage (e.g., 2x daily)"
+                          value={medDosage}
+                          onChange={(e) => setMedDosage(e.target.value)}
+                          className="flex-1 min-w-40"
+                        />
                         <Button type="button" variant="outline" onClick={handleAddMedicine}>
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -249,12 +257,18 @@ export default function DoctorPage() {
                       {prescriptionMeds.length > 0 && (
                         <div className="border rounded-lg divide-y">
                           {prescriptionMeds.map((med) => (
-                            <div key={med.medicine_id} className="flex items-center justify-between p-3">
+                            <div key={med.medicineId} className="flex items-center justify-between p-3">
                               <div>
-                                <p className="font-medium">{med.medicine_name}</p>
+                                <p className="font-medium">{med.medicineName}</p>
                                 <p className="text-sm text-muted-foreground">Qty: {med.quantity} · {med.dosage}</p>
                               </div>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveMedicine(med.medicine_id)} className="text-destructive hover:text-destructive">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveMedicine(med.medicineId)}
+                                className="text-destructive hover:text-destructive"
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
@@ -265,11 +279,16 @@ export default function DoctorPage() {
 
                     <div className="space-y-2">
                       <Label>Follow-up Note</Label>
-                      <Textarea placeholder="Instructions for follow-up..." value={followUpNote} onChange={(e) => setFollowUpNote(e.target.value)} rows={2} />
+                      <Textarea
+                        placeholder="Instructions for follow-up..."
+                        value={followUpNote}
+                        onChange={(e) => setFollowUpNote(e.target.value)}
+                        rows={2}
+                      />
                     </div>
 
-                    <Button type="submit" className="w-full gradient-primary" disabled={isPending}>
-                      {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    <Button type="submit" className="w-full gradient-primary">
+                      <Send className="w-4 h-4 mr-2" />
                       Create Prescription & Send to Pharmacy
                     </Button>
                   </form>
