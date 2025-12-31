@@ -26,31 +26,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserData = useCallback(async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string, setLoadingFalse = false) => {
     try {
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, name, email, avatar_url')
-        .eq('id', userId)
-        .maybeSingle();
+      // Fetch profile and role in parallel
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, name, email, avatar_url')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle()
+      ]);
 
-      if (profileData) {
-        setProfile(profileData);
+      if (profileResult.data) {
+        setProfile(profileResult.data);
       }
 
-      // Fetch role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (roleData) {
-        setRole(roleData.role);
+      if (roleResult.data) {
+        setRole(roleResult.data.role);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+    } finally {
+      if (setLoadingFalse) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -83,9 +87,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserData(session.user.id);
+        fetchUserData(session.user.id, true); // Pass true to set loading false after fetch
+      } else {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
