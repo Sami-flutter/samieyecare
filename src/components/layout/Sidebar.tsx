@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Activity,
   Loader2,
+  History,
 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
@@ -35,12 +36,14 @@ const roleNavItems: Record<AppRole, NavItem[]> = {
   ],
   doctor: [
     { label: 'Patients', href: '/doctor', icon: Stethoscope },
+    { label: 'Patient History', href: '/patient-history', icon: History },
   ],
   pharmacy: [
     { label: 'Prescriptions', href: '/pharmacy', icon: Pill },
   ],
   admin: [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { label: 'Patient History', href: '/patient-history', icon: History },
     { label: 'Staff', href: '/admin/staff', icon: Users },
     { label: 'Medicines', href: '/admin/medicines', icon: Pill },
     { label: 'Reports', href: '/admin/reports', icon: Activity },
