@@ -1,6 +1,4 @@
 import { ReactNode } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -10,12 +8,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { isAuthenticated, user } = useAuth();
   const isMobile = useIsMobile();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   return (
     <div className="min-h-screen bg-background">
