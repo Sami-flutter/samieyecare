@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -12,7 +12,6 @@ import {
   Activity,
   LogOut,
 } from 'lucide-react';
-import { UserRole } from '@/types/clinic';
 
 interface NavItem {
   label: string;
@@ -44,12 +43,13 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
 };
 
 export function MobileNav() {
-  const { user, logout } = useAuth();
+  const { roles, logout } = useAuth();
   const location = useLocation();
 
-  if (!user) return null;
+  if (roles.length === 0) return null;
 
-  const navItems = roleNavItems[user.role];
+  const primaryRole = roles[0];
+  const navItems = roleNavItems[primaryRole];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-large z-50">

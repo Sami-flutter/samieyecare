@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -13,7 +13,6 @@ import {
   ClipboardList,
   Activity,
 } from 'lucide-react';
-import { UserRole } from '@/types/clinic';
 
 interface NavItem {
   label: string;
@@ -61,13 +60,14 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 export function Sidebar() {
-  const { user, logout } = useAuth();
+  const { profile, roles, logout } = useAuth();
   const location = useLocation();
 
-  if (!user) return null;
+  if (!profile || roles.length === 0) return null;
 
-  const navItems = roleNavItems[user.role];
-  const RoleIcon = roleIcons[user.role];
+  const primaryRole = roles[0];
+  const navItems = roleNavItems[primaryRole];
+  const RoleIcon = roleIcons[primaryRole];
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col">
@@ -91,8 +91,8 @@ export function Sidebar() {
             <RoleIcon className="w-4 h-4 text-sidebar-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-sidebar-foreground/60">{roleLabels[user.role]}</p>
+            <p className="text-sm font-medium truncate">{profile.name}</p>
+            <p className="text-xs text-sidebar-foreground/60">{roleLabels[primaryRole]}</p>
           </div>
         </div>
       </div>
