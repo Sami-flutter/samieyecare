@@ -117,28 +117,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const redirectUrl = `${window.location.origin}/`;
       
+      // Pass role in metadata - the database trigger will create the role
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          data: { name },
+          data: { name, role: userRole },
         },
       });
 
       if (error) {
         return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        // Add user role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: data.user.id, role: userRole });
-
-        if (roleError) {
-          console.error('Error adding role:', roleError);
-        }
       }
 
       return { success: true };
