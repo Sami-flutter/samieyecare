@@ -49,7 +49,9 @@ export function MobileNav() {
 
   if (!user) return null;
 
-  const navItems = roleNavItems[user.role];
+  const navItems = roleNavItems[user.role as UserRole] || [];
+  
+  if (navItems.length === 0) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-large z-50">
