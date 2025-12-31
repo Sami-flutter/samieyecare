@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import ReceptionDashboard from "./pages/reception/ReceptionDashboard";
 import RegisterPatient from "./pages/reception/RegisterPatient";
@@ -29,16 +30,67 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/reception" element={<ReceptionDashboard />} />
-            <Route path="/reception/register" element={<RegisterPatient />} />
-            <Route path="/reception/queue" element={<QueueManagement />} />
-            <Route path="/eye-measurement" element={<EyeMeasurementPage />} />
-            <Route path="/doctor" element={<DoctorPage />} />
-            <Route path="/pharmacy" element={<PharmacyPage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/staff" element={<StaffManagement />} />
-            <Route path="/admin/medicines" element={<MedicineManagement />} />
-            <Route path="/admin/reports" element={<ReportsPage />} />
+            
+            {/* Reception Routes */}
+            <Route path="/reception" element={
+              <ProtectedRoute allowedRoles={['reception', 'admin']}>
+                <ReceptionDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/reception/register" element={
+              <ProtectedRoute allowedRoles={['reception', 'admin']}>
+                <RegisterPatient />
+              </ProtectedRoute>
+            } />
+            <Route path="/reception/queue" element={
+              <ProtectedRoute allowedRoles={['reception', 'admin']}>
+                <QueueManagement />
+              </ProtectedRoute>
+            } />
+            
+            {/* Eye Measurement Routes */}
+            <Route path="/eye-measurement" element={
+              <ProtectedRoute allowedRoles={['eye_measurement', 'admin']}>
+                <EyeMeasurementPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Doctor Routes */}
+            <Route path="/doctor" element={
+              <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+                <DoctorPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Pharmacy Routes */}
+            <Route path="/pharmacy" element={
+              <ProtectedRoute allowedRoles={['pharmacy', 'admin']}>
+                <PharmacyPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/staff" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <StaffManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/medicines" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <MedicineManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
