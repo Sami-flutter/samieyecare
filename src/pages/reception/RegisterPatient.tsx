@@ -48,7 +48,7 @@ export default function RegisterPatient() {
       });
 
       if (createVisitAfter) {
-        const visit = await createVisitMutation.mutateAsync(patient.id);
+        const visit = await createVisitMutation.mutateAsync({ patientId: patient.id });
         toast.success(`Patient registered! Queue #${visit.queue_number}`);
       } else {
         toast.success('Patient registered successfully!');

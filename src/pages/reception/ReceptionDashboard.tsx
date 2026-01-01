@@ -26,7 +26,7 @@ export default function ReceptionDashboard() {
 
   const handleCreateVisit = async (patientId: string) => {
     try {
-      const visit = await createVisitMutation.mutateAsync(patientId);
+      const visit = await createVisitMutation.mutateAsync({ patientId });
       toast.success(`Visit created! Queue #${visit.queue_number}`);
       setSearchQuery('');
     } catch (error) {
@@ -151,7 +151,7 @@ export default function ReceptionDashboard() {
                       <p className="text-sm text-muted-foreground">{visit.patients?.phone}</p>
                     </div>
                   </div>
-                  <StatusBadge status={visit.status} />
+                  <StatusBadge status={visit.status as any} />
                 </div>
               ))}
             </div>

@@ -142,6 +142,119 @@ export type Database = {
         }
         Relationships: []
       }
+      pharmacy_sale_items: {
+        Row: {
+          id: string
+          medicine_id: string
+          medicine_name: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          medicine_id: string
+          medicine_name: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          id?: string
+          medicine_id?: string
+          medicine_name?: string
+          quantity?: number
+          sale_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_sale_items_medicine_id_fkey"
+            columns: ["medicine_id"]
+            isOneToOne: false
+            referencedRelation: "medicines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacy_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pharmacy_sales: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          paid: boolean
+          paid_at: string | null
+          patient_id: string
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          prescription_id: string
+          total_amount: number
+          visit_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          patient_id: string
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          prescription_id: string
+          total_amount?: number
+          visit_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          patient_id?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          prescription_id?: string
+          total_amount?: number
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_sales_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_sales_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_sales_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_sales_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescription_medicines: {
         Row: {
           dosage: string
@@ -186,6 +299,7 @@ export type Database = {
       }
       prescriptions: {
         Row: {
+          buy_from_clinic: boolean
           created_at: string
           created_by: string
           diagnosis: string
@@ -197,6 +311,7 @@ export type Database = {
           visit_id: string
         }
         Insert: {
+          buy_from_clinic?: boolean
           created_at?: string
           created_by: string
           diagnosis: string
@@ -208,6 +323,7 @@ export type Database = {
           visit_id: string
         }
         Update: {
+          buy_from_clinic?: boolean
           created_at?: string
           created_by?: string
           diagnosis?: string
@@ -277,34 +393,47 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          doctor_id: string | null
           id: string
           patient_id: string
           payment_amount: number | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           queue_number: number
+          room_number: string | null
           status: Database["public"]["Enums"]["visit_status"]
         }
         Insert: {
           completed_at?: string | null
           created_at?: string
+          doctor_id?: string | null
           id?: string
           patient_id: string
           payment_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           queue_number: number
+          room_number?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
         }
         Update: {
           completed_at?: string | null
           created_at?: string
+          doctor_id?: string | null
           id?: string
           patient_id?: string
           payment_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           queue_number?: number
+          room_number?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "visits_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "visits_patient_id_fkey"
             columns: ["patient_id"]
@@ -343,6 +472,9 @@ export type Database = {
         | "with_doctor"
         | "pharmacy"
         | "completed"
+        | "registered"
+        | "in_consultation"
+        | "prescribed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -479,6 +611,9 @@ export const Constants = {
         "with_doctor",
         "pharmacy",
         "completed",
+        "registered",
+        "in_consultation",
+        "prescribed",
       ],
     },
   },
