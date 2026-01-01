@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { VisitStatus } from '@/types/clinic';
+import { VisitStatus } from '@/hooks/useVisits';
 
 interface StatusBadgeProps {
   status: VisitStatus;
@@ -7,6 +7,10 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<VisitStatus, { label: string; className: string }> = {
+  registered: {
+    label: 'Registered',
+    className: 'bg-muted text-muted-foreground border-border',
+  },
   waiting: {
     label: 'Waiting',
     className: 'bg-warning/15 text-warning-foreground border-warning/30',
@@ -18,6 +22,14 @@ const statusConfig: Record<VisitStatus, { label: string; className: string }> = 
   with_doctor: {
     label: 'With Doctor',
     className: 'bg-primary/15 text-primary border-primary/30',
+  },
+  in_consultation: {
+    label: 'In Consultation',
+    className: 'bg-primary/25 text-primary border-primary/50',
+  },
+  prescribed: {
+    label: 'Prescribed',
+    className: 'bg-accent/15 text-accent-foreground border-accent/30',
   },
   pharmacy: {
     label: 'Pharmacy',

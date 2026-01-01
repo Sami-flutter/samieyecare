@@ -63,22 +63,25 @@ export function useAddPrescription() {
       followUpNote,
       createdBy,
       medicines,
+      buyFromClinic = true,
     }: {
       visitId: string;
       diagnosis: string;
       followUpNote?: string;
       createdBy: string;
       medicines: { medicineId: string; medicineName: string; quantity: number; dosage: string }[];
+      buyFromClinic?: boolean;
     }) => {
       // Create prescription
       const { data: prescription, error: prescriptionError } = await supabase
         .from('prescriptions')
-        .insert({
+        .insert([{
           visit_id: visitId,
           diagnosis,
           follow_up_note: followUpNote,
           created_by: createdBy,
-        })
+          buy_from_clinic: buyFromClinic,
+        }] as any)
         .select()
         .single();
 
