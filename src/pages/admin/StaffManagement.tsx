@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { Users, RefreshCw, Plus, Pencil, Trash2, Loader2, Copy, Mail } from 'lucide-react';
 import { useStaff, useUpdateStaffRole, StaffMember } from '@/hooks/useStaff';
 import { useCreateStaff, useDeleteStaff, useUpdateStaffProfile, useResetPasswordRequest } from '@/hooks/useAdminStaff';
@@ -36,6 +37,7 @@ const roleColors: Record<AppRole, string> = {
 const availableRoles: AppRole[] = ['reception', 'eye_measurement', 'doctor', 'pharmacy', 'admin'];
 
 export default function StaffManagement() {
+  const { user } = useAuth();
   const { data: staff, isLoading, refetch } = useStaff();
   const updateRole = useUpdateStaffRole();
   const createStaff = useCreateStaff();
@@ -277,46 +279,51 @@ export default function StaffManagement() {
             </CardContent>
           </Card>
         ) : (
-          staff?.map((member) => (
-            <Card key={member.id} className="shadow-soft hover:shadow-medium transition-shadow">
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
-                    {member.name.charAt(0).toUpperCase()}
+          staff?.filter(m => m.id !== user?.id).map((member) => {
+            const isAdmin = member.role === 'admin';
+            return (
+              <Card key={member.id} className="shadow-soft hover:shadow-medium transition-shadow">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{member.name}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{member.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select
+                        value={member.role}
+                        onValueChange={(value: AppRole) => handleRoleChange(member.id, value)}
+                        disabled={updateRole.isPending}
+                      >
+                        <SelectTrigger className={`w-32 sm:w-40 ${roleColors[member.role]}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableRoles.map(role => (
+                            <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="icon" onClick={() => openEditDialog(member)} title="Edit">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => handleSendPasswordReset(member.email)} title="Send password reset" disabled={resetPassword.isPending}>
+                        <Mail className="w-4 h-4" />
+                      </Button>
+                      {!isAdmin && (
+                        <Button variant="outline" size="icon" onClick={() => { setSelectedStaff(member); setDeleteDialogOpen(true); }} title="Deactivate">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Select
-                      value={member.role}
-                      onValueChange={(value: AppRole) => handleRoleChange(member.id, value)}
-                      disabled={updateRole.isPending}
-                    >
-                      <SelectTrigger className={`w-32 sm:w-40 ${roleColors[member.role]}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableRoles.map(role => (
-                          <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="icon" onClick={() => openEditDialog(member)} title="Edit">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleSendPasswordReset(member.email)} title="Send password reset" disabled={resetPassword.isPending}>
-                      <Mail className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => { setSelectedStaff(member); setDeleteDialogOpen(true); }} title="Deactivate">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </AppShell>
