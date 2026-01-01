@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useTodayVisits, useUpdateVisitStatus, useRecordPayment, VisitStatus } from '@/hooks/useVisits';
 import { useDoctors } from '@/hooks/useDoctors';
+import { useUpdateVisitAssignment } from '@/hooks/useUpdateVisitAssignment';
 import { usePrint } from '@/hooks/usePrint';
 import { ReceptionSlip } from '@/components/print/ReceptionSlip';
 import { toast } from 'sonner';
-import { DollarSign, Send, CheckCircle, Loader2, Printer, User, MapPin, AlertTriangle } from 'lucide-react';
+import { DollarSign, Send, CheckCircle, Loader2, Printer, User, MapPin, AlertTriangle, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Database } from '@/integrations/supabase/types';
 
@@ -24,6 +25,7 @@ export default function QueueManagement() {
   const { data: doctors = [] } = useDoctors();
   const updateStatusMutation = useUpdateVisitStatus();
   const recordPaymentMutation = useRecordPayment();
+  const updateAssignmentMutation = useUpdateVisitAssignment();
   const { printElement } = usePrint();
   
   const [selectedVisit, setSelectedVisit] = useState<string | null>(null);
@@ -31,14 +33,29 @@ export default function QueueManagement() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Print slip state
+  // Edit assignment dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editVisitId, setEditVisitId] = useState<string | null>(null);
+  const [editDoctorId, setEditDoctorId] = useState('');
+  const [editRoomNumber, setEditRoomNumber] = useState('');
+  
+  // Print slip state - always render for ref stability
   const [printSlipData, setPrintSlipData] = useState<{
     patientName: string;
     tokenNumber: number;
     doctorName: string;
     roomNumber: string;
   } | null>(null);
+  const [shouldPrint, setShouldPrint] = useState(false);
   const printSlipRef = useRef<HTMLDivElement>(null);
+
+  // Effect to handle printing after state updates
+  useEffect(() => {
+    if (shouldPrint && printSlipData && printSlipRef.current) {
+      printElement(printSlipRef.current);
+      setShouldPrint(false);
+    }
+  }, [shouldPrint, printSlipData, printElement]);
 
   const handleRecordPayment = async () => {
     if (!selectedVisit || !paymentAmount) {
@@ -75,6 +92,35 @@ export default function QueueManagement() {
     return !visit.doctor?.id || !(visit as any).room_number;
   };
 
+  // Open edit assignment dialog
+  const openEditDialog = (visit: typeof todayVisits[0]) => {
+    setEditVisitId(visit.id);
+    setEditDoctorId(visit.doctor?.id || '');
+    setEditRoomNumber((visit as any).room_number || '');
+    setEditDialogOpen(true);
+  };
+
+  // Save assignment
+  const handleSaveAssignment = async () => {
+    if (!editVisitId || !editDoctorId || !editRoomNumber) {
+      toast.error('Doctor and room are required');
+      return;
+    }
+
+    try {
+      await updateAssignmentMutation.mutateAsync({
+        visitId: editVisitId,
+        doctorId: editDoctorId,
+        roomNumber: editRoomNumber,
+      });
+      toast.success('Assignment updated successfully!');
+      setEditDialogOpen(false);
+      setEditVisitId(null);
+    } catch (error) {
+      toast.error('Failed to update assignment');
+    }
+  };
+
   const handlePrintSlip = (visit: typeof todayVisits[0]) => {
     // Guard: don't print if missing doctor or room
     if (isVisitIncomplete(visit)) {
@@ -88,14 +134,12 @@ export default function QueueManagement() {
     setPrintSlipData({
       patientName: visit.patients?.name || 'Unknown',
       tokenNumber: visit.queue_number,
-      doctorName,
+      doctorName: `Dr. ${doctorName}`,
       roomNumber,
     });
     
-    // Wait for state to update then print
-    setTimeout(() => {
-      printElement(printSlipRef.current);
-    }, 100);
+    // Trigger print in next render cycle
+    setTimeout(() => setShouldPrint(true), 150);
   };
 
   if (isLoading) {
@@ -116,19 +160,76 @@ export default function QueueManagement() {
         description="View and manage today's patient queue"
       />
 
-      {/* Hidden print slip */}
-      <div className="hidden">
-        {printSlipData && (
-          <ReceptionSlip
-            ref={printSlipRef}
-            date={new Date()}
-            patientName={printSlipData.patientName}
-            tokenNumber={printSlipData.tokenNumber}
-            doctorName={printSlipData.doctorName}
-            roomNumber={printSlipData.roomNumber}
-          />
-        )}
+      {/* Hidden print slip - always rendered for ref stability */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+        <ReceptionSlip
+          ref={printSlipRef}
+          date={new Date()}
+          patientName={printSlipData?.patientName || ''}
+          tokenNumber={printSlipData?.tokenNumber || 0}
+          doctorName={printSlipData?.doctorName || ''}
+          roomNumber={printSlipData?.roomNumber || ''}
+        />
       </div>
+
+      {/* Edit Assignment Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Doctor *</Label>
+              <Select value={editDoctorId} onValueChange={setEditDoctorId}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Select a doctor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {doctors.length === 0 ? (
+                    <SelectItem value="_none" disabled>
+                      No doctors available - add via Staff Management
+                    </SelectItem>
+                  ) : (
+                    doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        Dr. {doctor.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {doctors.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No doctors found. Add staff with "Doctor" role in Staff Management.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Room Number *</Label>
+              <Input
+                placeholder="e.g., Room 1, 2A..."
+                value={editRoomNumber}
+                onChange={(e) => setEditRoomNumber(e.target.value)}
+                className="h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveAssignment}
+              disabled={updateAssignmentMutation.isPending || !editDoctorId || !editRoomNumber}
+              className="gradient-primary"
+            >
+              {updateAssignmentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4">
         {todayVisits.length === 0 ? (
@@ -146,9 +247,19 @@ export default function QueueManagement() {
                 <div className="flex flex-col gap-4">
                   {/* Incomplete visit warning */}
                   {incomplete && (
-                    <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-sm">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Incomplete visit — assign doctor & room</span>
+                    <div className="flex items-center justify-between p-2 rounded-md bg-destructive/10 text-destructive text-sm">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Incomplete visit — assign doctor & room</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => openEditDialog(visit)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Assign Now
+                      </Button>
                     </div>
                   )}
 
@@ -177,6 +288,16 @@ export default function QueueManagement() {
                         <MapPin className="w-4 h-4" />
                         <span>{(visit as any).room_number ? `Room ${(visit as any).room_number}` : 'No room'}</span>
                       </div>
+                      {!incomplete && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => openEditDialog(visit)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
 
                     {/* Status and Actions */}
