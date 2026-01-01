@@ -13,7 +13,8 @@ import { useDoctors } from '@/hooks/useDoctors';
 import { usePrint } from '@/hooks/usePrint';
 import { ReceptionSlip } from '@/components/print/ReceptionSlip';
 import { toast } from 'sonner';
-import { DollarSign, Send, CheckCircle, Loader2, Printer, User, MapPin } from 'lucide-react';
+import { DollarSign, Send, CheckCircle, Loader2, Printer, User, MapPin, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Database } from '@/integrations/supabase/types';
 
 type PaymentMethod = Database['public']['Enums']['payment_method'];
@@ -69,7 +70,18 @@ export default function QueueManagement() {
     }
   };
 
+  // Check if visit is missing doctor or room
+  const isVisitIncomplete = (visit: typeof todayVisits[0]) => {
+    return !visit.doctor?.id || !(visit as any).room_number;
+  };
+
   const handlePrintSlip = (visit: typeof todayVisits[0]) => {
+    // Guard: don't print if missing doctor or room
+    if (isVisitIncomplete(visit)) {
+      toast.error('Assign doctor and room before printing');
+      return;
+    }
+
     const doctorName = visit.doctor?.name || 'Not Assigned';
     const roomNumber = (visit as any).room_number || 'N/A';
     
@@ -126,10 +138,20 @@ export default function QueueManagement() {
             </CardContent>
           </Card>
         ) : (
-          todayVisits.map((visit) => (
-            <Card key={visit.id} className="shadow-soft hover:shadow-medium transition-shadow">
+          todayVisits.map((visit) => {
+            const incomplete = isVisitIncomplete(visit);
+            return (
+            <Card key={visit.id} className={`shadow-soft hover:shadow-medium transition-shadow ${incomplete ? 'border-destructive/50' : ''}`}>
               <CardContent className="p-5">
                 <div className="flex flex-col gap-4">
+                  {/* Incomplete visit warning */}
+                  {incomplete && (
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-sm">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Incomplete visit — assign doctor & room</span>
+                    </div>
+                  )}
+
                   {/* Main info row */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     {/* Queue Number */}
@@ -147,13 +169,13 @@ export default function QueueManagement() {
 
                     {/* Doctor and Room info */}
                     <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span>{visit.doctor?.name || 'No doctor'}</span>
+                      <div className={`flex items-center gap-1.5 ${!visit.doctor?.id ? 'text-destructive' : ''}`}>
+                        <User className="w-4 h-4" />
+                        <span>{visit.doctor?.name ? `Dr. ${visit.doctor.name}` : 'No doctor'}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span>Room {(visit as any).room_number || 'N/A'}</span>
+                      <div className={`flex items-center gap-1.5 ${!(visit as any).room_number ? 'text-destructive' : ''}`}>
+                        <MapPin className="w-4 h-4" />
+                        <span>{(visit as any).room_number ? `Room ${(visit as any).room_number}` : 'No room'}</span>
                       </div>
                     </div>
 
@@ -162,14 +184,28 @@ export default function QueueManagement() {
                       <StatusBadge status={visit.status as VisitStatus} />
                       
                       {/* Print Slip */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePrintSlip(visit)}
-                      >
-                        <Printer className="w-4 h-4 mr-1" />
-                        Print Slip
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePrintSlip(visit)}
+                                disabled={incomplete}
+                              >
+                                <Printer className="w-4 h-4 mr-1" />
+                                Print Slip
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {incomplete && (
+                            <TooltipContent>
+                              <p>Assign doctor and room before printing</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
                       
                       {visit.payment_amount ? (
                         <div className="flex items-center gap-1 text-sm text-success font-medium">
@@ -245,7 +281,7 @@ export default function QueueManagement() {
                 </div>
               </CardContent>
             </Card>
-          ))
+          )})
         )}
       </div>
     </AppShell>

@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Clock, DollarSign, Search, ArrowRight, Loader2, Printer } from 'lucide-react';
+import { Users, UserPlus, Clock, DollarSign, Search, ArrowRight, Loader2, Printer, AlertCircle } from 'lucide-react';
 import { usePatients, useSearchPatients } from '@/hooks/usePatients';
 import { useTodayVisits, useCreateVisit, VisitWithPatient } from '@/hooks/useVisits';
 import { useDoctors } from '@/hooks/useDoctors';
@@ -63,16 +63,25 @@ export default function ReceptionDashboard() {
     // For now, user can manually enter
   };
 
+  // Validation check
+  const visitFieldsMissing = !selectedDoctorId || !roomNumber;
+
   // Create visit with doctor and room
   const handleCreateVisit = async (shouldPrint: boolean = false) => {
     if (!selectedPatient) return;
+
+    // Block visit creation if doctor or room is missing
+    if (!selectedDoctorId || !roomNumber) {
+      toast.error('Doctor and room are required to create a visit');
+      return;
+    }
 
     setIsCreating(true);
     try {
       const visit = await createVisitMutation.mutateAsync({
         patientId: selectedPatient.id,
-        doctorId: selectedDoctorId || undefined,
-        roomNumber: roomNumber || undefined,
+        doctorId: selectedDoctorId,
+        roomNumber: roomNumber,
       });
 
       const doctorName = doctors.find(d => d.id === selectedDoctorId)?.name || 'Not Assigned';
@@ -256,10 +265,10 @@ export default function ReceptionDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label>Assign Doctor</Label>
+                <Label>Doctor *</Label>
                 <Select value={selectedDoctorId} onValueChange={handleDoctorChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a doctor (optional)" />
+                    <SelectValue placeholder="Select a doctor" />
                   </SelectTrigger>
                   <SelectContent>
                     {doctors.map((doctor) => (
@@ -272,13 +281,20 @@ export default function ReceptionDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label>Room Number</Label>
+                <Label>Room Number *</Label>
                 <Input
                   placeholder="e.g., Room 1, 2A..."
                   value={roomNumber}
                   onChange={(e) => setRoomNumber(e.target.value)}
                 />
               </div>
+
+              {visitFieldsMissing && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="w-4 h-4" />
+                  Doctor and room are required to create a visit
+                </div>
+              )}
             </div>
           )}
 
@@ -286,11 +302,11 @@ export default function ReceptionDashboard() {
             <Button variant="outline" onClick={() => setVisitDialogOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button onClick={() => handleCreateVisit(false)} disabled={isCreating}>
+            <Button onClick={() => handleCreateVisit(false)} disabled={isCreating || visitFieldsMissing}>
               {isCreating && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Create Visit
             </Button>
-            <Button onClick={() => handleCreateVisit(true)} className="gradient-primary" disabled={isCreating}>
+            <Button onClick={() => handleCreateVisit(true)} className="gradient-primary" disabled={isCreating || visitFieldsMissing}>
               {isCreating && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Printer className="w-4 h-4 mr-2" />
               Create & Print
