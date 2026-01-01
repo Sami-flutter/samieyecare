@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAddPatient } from '@/hooks/usePatients';
 import { useCreateVisit } from '@/hooks/useVisits';
+import { useDoctors } from '@/hooks/useDoctors';
 import { toast } from 'sonner';
-import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type Gender = Database['public']['Enums']['gender'];
@@ -19,6 +20,7 @@ export default function RegisterPatient() {
   const navigate = useNavigate();
   const addPatientMutation = useAddPatient();
   const createVisitMutation = useCreateVisit();
+  const { data: doctors = [] } = useDoctors();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -27,13 +29,23 @@ export default function RegisterPatient() {
     gender: '' as Gender | '',
   });
   const [createVisitAfter, setCreateVisitAfter] = useState(true);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const visitFieldsMissing = createVisitAfter && (!selectedDoctorId || !roomNumber);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.phone || !formData.age || !formData.gender) {
       toast.error('Please fill in all fields');
+      return;
+    }
+
+    // Block visit creation if doctor or room is missing
+    if (createVisitAfter && (!selectedDoctorId || !roomNumber)) {
+      toast.error('Doctor and room are required to create a visit');
       return;
     }
 
@@ -48,7 +60,11 @@ export default function RegisterPatient() {
       });
 
       if (createVisitAfter) {
-        const visit = await createVisitMutation.mutateAsync({ patientId: patient.id });
+        const visit = await createVisitMutation.mutateAsync({ 
+          patientId: patient.id,
+          doctorId: selectedDoctorId,
+          roomNumber: roomNumber,
+        });
         toast.success(`Patient registered! Queue #${visit.queue_number}`);
       } else {
         toast.success('Patient registered successfully!');
@@ -146,11 +162,49 @@ export default function RegisterPatient() {
               </Label>
             </div>
 
+            {/* Doctor and Room selection - shown when creating visit */}
+            {createVisitAfter && (
+              <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/30">
+                <div className="space-y-2">
+                  <Label>Doctor *</Label>
+                  <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select a doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          Dr. {doctor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Room Number *</Label>
+                  <Input
+                    placeholder="e.g., Room 1, 2A..."
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+
+                {visitFieldsMissing && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="w-4 h-4" />
+                    Doctor and room are required to create a visit
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => navigate('/reception')} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 gradient-primary" disabled={isSubmitting}>
+              <Button type="submit" className="flex-1 gradient-primary" disabled={isSubmitting || visitFieldsMissing}>
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Register Patient
               </Button>
