@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { PrintHeader } from './PrintHeader';
 
 interface PrescriptionMedicine {
   medicineName: string;
@@ -8,6 +9,9 @@ interface PrescriptionMedicine {
 
 interface PrescriptionPrintProps {
   clinicName?: string;
+  clinicLogo?: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
   date: Date;
   patientName: string;
   patientAge: number;
@@ -21,25 +25,11 @@ interface PrescriptionPrintProps {
 }
 
 export const PrescriptionPrint = forwardRef<HTMLDivElement, PrescriptionPrintProps>(
-  ({ 
-    clinicName = 'Eye Care Clinic', 
-    date, 
-    patientName, 
-    patientAge,
-    patientGender,
-    tokenNumber, 
-    doctorName, 
-    diagnosis,
-    medicines,
-    followUpNote,
-    buyFromClinic
-  }, ref) => {
+  ({ clinicName = 'Eye Care Clinic', clinicLogo, clinicAddress, clinicPhone, date, patientName, patientAge, patientGender, tokenNumber, doctorName, diagnosis, medicines, followUpNote, buyFromClinic }, ref) => {
     return (
-      <div ref={ref} className="p-8 bg-white text-black w-[400px] font-sans">
-        <div className="text-center mb-4 pb-4 border-b-2 border-gray-800">
-          <h1 className="text-2xl font-bold uppercase">{clinicName}</h1>
-          <p className="text-sm text-gray-600">Medical Prescription</p>
-        </div>
+      <div ref={ref} className="p-8 bg-white text-black w-full max-w-[210mm] font-sans print-a4">
+        <PrintHeader clinicName={clinicName} logoUrl={clinicLogo} clinicAddress={clinicAddress} clinicPhone={clinicPhone} subtitle="Medical Prescription" />
+        <div className="border-b-2 border-gray-800 mb-4"></div>
 
         <div className="grid grid-cols-2 gap-2 text-sm mb-4">
           <div><span className="text-gray-500">Date:</span> {date.toLocaleDateString()}</div>
@@ -57,22 +47,10 @@ export const PrescriptionPrint = forwardRef<HTMLDivElement, PrescriptionPrintPro
         <div className="mb-4">
           <p className="text-xs text-gray-500 uppercase mb-2">Rx - Medicines</p>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-300">
-                <th className="text-left py-1">#</th>
-                <th className="text-left py-1">Medicine</th>
-                <th className="text-center py-1">Qty</th>
-                <th className="text-left py-1">Dosage</th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-gray-300"><th className="text-left py-1">#</th><th className="text-left py-1">Medicine</th><th className="text-center py-1">Qty</th><th className="text-left py-1">Dosage</th></tr></thead>
             <tbody>
               {medicines.map((med, index) => (
-                <tr key={index} className="border-b border-gray-200">
-                  <td className="py-2">{index + 1}</td>
-                  <td className="py-2 font-medium">{med.medicineName}</td>
-                  <td className="py-2 text-center">{med.quantity}</td>
-                  <td className="py-2 text-gray-600">{med.dosage}</td>
-                </tr>
+                <tr key={index} className="border-b border-gray-200"><td className="py-2">{index + 1}</td><td className="py-2 font-medium">{med.medicineName}</td><td className="py-2 text-center">{med.quantity}</td><td className="py-2 text-gray-600">{med.dosage}</td></tr>
               ))}
             </tbody>
           </table>
@@ -86,11 +64,7 @@ export const PrescriptionPrint = forwardRef<HTMLDivElement, PrescriptionPrintPro
         )}
 
         <div className="mt-4 pt-4 border-t border-gray-300 text-sm">
-          {buyFromClinic ? (
-            <p className="text-center font-medium">Please proceed to Pharmacy counter</p>
-          ) : (
-            <p className="text-center text-gray-600">Patient will purchase medicines outside</p>
-          )}
+          {buyFromClinic ? <p className="text-center font-medium">Please proceed to Pharmacy counter</p> : <p className="text-center text-gray-600">Patient will purchase medicines outside</p>}
         </div>
 
         <div className="mt-8 text-right">

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ReceptionDashboard from "./pages/reception/ReceptionDashboard";
 import RegisterPatient from "./pages/reception/RegisterPatient";
 import QueueManagement from "./pages/reception/QueueManagement";
@@ -31,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             {/* Reception Routes */}
             <Route path="/reception" element={
